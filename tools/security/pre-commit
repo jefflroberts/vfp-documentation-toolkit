@@ -1,0 +1,50 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# Pre-commit guard: refuse to commit unscrubbed credentials.
+#
+# Runs scrub_source.py in DRY-RUN mode over the VFP source. If it finds any
+# credential value still in the clear (e.g. after a fresh copy was pulled from
+# production into this tree), it aborts the commit and tells you to scrub.
+#
+# Git does not clone hooks, so install it once per clone:
+#     cp tools/security/pre-commit .git/hooks/pre-commit    # + chmod +x on Unix
+#
+# Configure (optional, via env or by editing the defaults below):
+#     SCRUB_ROOT   folder to scan for secrets      (default: repo root)
+#     SCRUB_SCRIPT path to scrub_source.py         (default: auto-detected)
+#     SCRUB_ARGS   extra args, e.g. "--exclude data02 archive"
+#
+# Bypass a specific commit (only if you are sure):  git commit --no-verify
+# ---------------------------------------------------------------------------
+root="$(git rev-parse --show-toplevel)"
+
+# Locate scrub_source.py: explicit override, else common vendored locations.
+script="${SCRUB_SCRIPT:-}"
+if [ -z "$script" ]; then
+  for cand in \
+    "$root/tools/security/scrub_source.py" \
+    "$root/tools/scrub_source.py" \
+    "$root/scrub_source.py"; do
+    [ -f "$cand" ] && script="$cand" && break
+  done
+fi
+if [ -z "$script" ] || [ ! -f "$script" ]; then
+  echo "pre-commit: scrub_source.py not found; set SCRUB_SCRIPT to its path." >&2
+  exit 1
+fi
+
+scan_root="${SCRUB_ROOT:-$root}"
+out="$(python "$script" "$scan_root" $SCRUB_ARGS 2>/dev/null | tail -1)"
+files="$(printf '%s' "$out" | sed -n 's/.*across \([0-9][0-9]*\) file(s).*/\1/p')"
+
+if [ -n "$files" ] && [ "$files" -gt 0 ]; then
+  echo "" >&2
+  echo "COMMIT BLOCKED -- unscrubbed credential values in source:" >&2
+  echo "    $out" >&2
+  echo "" >&2
+  echo "Fix:  python $script $scan_root --apply   (then re-stage and commit)" >&2
+  echo "Bypass (only if you are sure):  git commit --no-verify" >&2
+  echo "" >&2
+  exit 1
+fi
+exit 0

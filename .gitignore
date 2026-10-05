@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# Field-kit staging artifacts. python-3.4.4.msi IS committed; everything below
+# is derived from it (or is a redistributable) and is rebuilt per the STAGING
+# section of tools/data-conversion/README.txt. Keeps ~90 MB of unpacked
+# interpreter out of the history.
+tools/data-conversion/python/
+tools/data-conversion/*.dll
+tools/data-conversion/vcredist*.exe
+
+# Converter output — real customer data, never commit.
+appdata.sqlite
+*.dbf
+*.fpt
