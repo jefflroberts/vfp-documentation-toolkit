@@ -25,11 +25,52 @@ ERP) and tested on Microsoft's Tastrade sample app.
 - **[Claude Code](https://claude.com/claude-code)** only if you want the `document-vfp-artifact`
   skill to write the per-artifact docs for you. Every Python tool works without it.
 
+## Installation
+
+1. **Clone the toolkit** somewhere stable. Every app you document will point back to this
+   checkout, so don't put it inside an app's repo.
+
+   ```sh
+   git clone https://github.com/jefflroberts/vfp-documentation-toolkit.git
+   ```
+
+2. **Check Python.** `python --version` should report 3.6 or newer. There is nothing to
+   `pip install`; the tools use only the standard library. For an old XP or Windows 7 machine
+   that only needs the data converter, see [`tools/data-conversion/README.txt`](tools/data-conversion/README.txt)
+   (a Python 3.4 installer is bundled).
+
+3. **Install FoxBin2PRG** from [its repo](https://github.com/fdbozzo/foxbin2prg) into your VFP
+   environment. You'll run it over the app's binaries to produce the text files the tools parse.
+
+4. **Install the Claude Code skill (optional).** Copy
+   [`skills/document-vfp-artifact/`](skills/document-vfp-artifact/) into the `.claude/skills/`
+   folder of the app's casebook repo. Or put it in `~/.claude/skills/` to make it available in
+   every project.
+
+   ```sh
+   # Per casebook (recommended)
+   mkdir -p path/to/casebook/.claude/skills
+   cp -r vfp-documentation-toolkit/skills/document-vfp-artifact path/to/casebook/.claude/skills/
+
+   # Or for every project on this machine
+   cp -r vfp-documentation-toolkit/skills/document-vfp-artifact ~/.claude/skills/
+   ```
+
+   Then create `docs/PROJECT.md` in the casebook from
+   [`project-md-template.md`](skills/document-vfp-artifact/references/project-md-template.md).
+   The skill reads it before writing any doc.
+
+5. **Install the credential guard** in the casebook before its first commit (git doesn't
+   clone hooks, so do this in every clone):
+
+   ```sh
+   cp vfp-documentation-toolkit/tools/security/pre-commit path/to/casebook/.git/hooks/pre-commit
+   chmod +x path/to/casebook/.git/hooks/pre-commit   # Unix only
+   ```
+
 ## Quick start
 
 ```sh
-git clone https://github.com/jefflroberts/vfp-documentation-toolkit.git
-
 # 1. Find hard-coded credentials before you commit the app's source anywhere
 python vfp-documentation-toolkit/tools/security/scan_secrets.py path/to/app/source
 
@@ -92,6 +133,30 @@ all of them.
 4. **Synthesize → recover → prove (stages 2–6).** Follow the pipeline. Use `dbf.py`/`dbfscan.py`
    for data spelunking, `extract_frx.py` for report layouts, and the capture methodology for a
    regression baseline.
+
+## Suggested prompt
+
+Once the skill is installed and `docs/PROJECT.md` is filled in, open Claude Code in the
+casebook repo and start with something like this:
+
+```text
+Read docs/PROJECT.md and the toolkit's methodology/reverse-engineering-pipeline.md and
+methodology/conventions.md. Then run tools/foxparse.py --summary over the source folders
+listed in PROJECT.md and give me an inventory: how many forms, classes, reports, menus,
+programs, and tables there are, and which ones have no doc yet.
+
+After that, use the document-vfp-artifact skill to document the undocumented artifacts,
+starting with the app's main menu and the forms it launches. Do one artifact at a time.
+Quote business rules as verbatim FoxPro before explaining them, and don't guess: flag
+anything you can't confirm from source with a NOTE: line. Stop after five docs so I can
+review them before you continue.
+```
+
+To document a single file:
+
+```text
+Use the document-vfp-artifact skill on forms/customer.sc2.
+```
 
 ## Known limitations
 
